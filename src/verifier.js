@@ -33,7 +33,6 @@ const verifier = (answers, provider) =>{
   	// if solc successfully loaded, compile the contract and get the JSON output
   	var output = solc_specific.compile(input, is_optimized);
   	// get bytecode from JSON output
-
     if (typeof output['contracts'][':'+file_name.slice(0,file_name.length-4)] === 'undefined'){
       // if there are more than one contract in the contract file, then the JSON representation will have ":"
       // at the front, but if there is only the main contract, there won't, in which case the vaule assignment
@@ -43,25 +42,22 @@ const verifier = (answers, provider) =>{
     else{
       var bytecode = output['contracts'][':'+file_name.slice(0,file_name.length-4)]['runtimeBytecode'];
     }
-
     if (parseInt(solc_version.match(/v\d+?\.\d+?\.\d+?[+-]/gi)[0].match(/\.\d+/g)[0].slice(1)) >= 4
      && parseInt(solc_version.match(/v\d+?\.\d+?\.\d+?[+-]/gi)[0].match(/\.\d+/g)[1].slice(1)) >= 7){
       // if solc version is at least 0.4.7, then swarm hash is included into the bytecode.
       // every bytecode starts with a fixed opcode: "PUSH1 0x60 PUSH1 0x40 MSTORE"
     	// which is 6060604052 in bytecode whose length is 10
-      
-    	var fixed_prefix= bytecode.slice(0,10);
-    	// every bytecode from compiler would have constructor bytecode inserted before actual deployed code.
-    	// the starting point is a fixed opcode: "CALLDATASIZE ISZERO"
-    	// which is 3615 in bytecode
-    	var starting_point = bytecode.search('3615');
-    	var remaining_part = bytecode.slice(starting_point);
+    	// var fixed_prefix= bytecode.slice(0,10);
+
+    	// every bytecode from compiler may or may not have constructor bytecode inserted before
+      // actual deployed code (since constructor is optional).So there might be multiple matching
+      // prefix of "6060604052", and actual deployed code starts at the last such pattern.
+      var starting_point = bytecode.lastIndexOf('6060604052');
     	// a165627a7a72305820 is a fixed prefix of swarm info that was appended to contract bytecode
     	// the beginning of swarm_info is always the ending point of the actual contract bytecode
     	var ending_point = bytecode.search('a165627a7a72305820');
     	// construct the actual deployed bytecode
-    	bytecode_from_compiler = '0x'+fixed_prefix + bytecode.slice(starting_point, ending_point);
-
+      bytecode_from_compiler = '0x'+ bytecode.slice(starting_point, ending_point);
     	console.log()
     	console.log('==========================================')
     	console.log('Finish compiling contract using solc compiler...');
@@ -91,44 +87,36 @@ const verifier = (answers, provider) =>{
 
     		var swarm_hash_full = output.slice(output.lastIndexOf("a165627a7a72305820"), -4);
         var swarm_hash = swarm_hash_full.slice(18);
-  
-    		bytecode_from_blockchain = output.slice(0,ending_point);
 
+    		bytecode_from_blockchain = output.slice(0,ending_point);
     		console.log()
     		console.log('==========================================')
     		console.log('Finishing retrieving bytecode from blockchain...');
     		console.log("Corresponding swarm hash is: bzzr:/" + swarm_hash);
-
-    		if (bytecode_from_blockchain == bytecode_from_compiler){
-    			console.log()
-    			console.log('==========================================')
-    			console.log(chalk.bold.underline.green("Bytecode Verified!!"))
-    		}
-    		else{
-    			console.log()
-    			console.log('==========================================')
-    			console.log(chalk.bold.underline.red("Bytecode doesn't match!!"))
-    		}
-      }
-      // if the solc version is less than 0.4.7, then just directly compared the two.
-      else{
+      } else{
+        // if the solc version is less than 0.4.7, then just directly compared the two.
         bytecode_from_blockchain = output;
     		console.log()
     		console.log('==========================================')
     		console.log('Finishing retrieving bytecode from blockchain...');
-
-    		if (bytecode_from_blockchain == bytecode_from_compiler){
-    			console.log()
-    			console.log('==========================================')
-    			console.log(chalk.bold.underline.green("Bytecode Verified!!"))
-    		}
-    		else{
-    			console.log()
-    			console.log('==========================================')
-    			console.log(chalk.bold.underline.red("Bytecode doesn't match!!"))
-    		}
+        console.log("This version of compiler hasn't add swarm hash to bytecode yet.");
       }
-
+      // checking bytecode
+      if (bytecode_from_blockchain == bytecode_from_compiler){
+        fs.writeFileSync('verified_deployed_bytecode.txt', bytecode_from_blockchain, 'utf-8');
+        console.log()
+        console.log('==========================================')
+        console.log(chalk.bold.underline.green("Bytecode Verified!!"))
+        console.log("You could find verified bytecode at "+ chalk.bold.underline.green("verified_deployed_bytecode.txt"));
+      }
+      else{
+        fs.writeFileSync('from_blockchain.txt', bytecode_from_blockchain, 'utf-8');
+        fs.writeFileSync('from_compiler.txt', bytecode_from_compiler, 'utf-8');
+        console.log()
+        console.log('==========================================')
+        console.log(chalk.bold.underline.red("Bytecode doesn't match!!"));
+        console.log("You could find unmatching bytecode at "+ chalk.bold.underline.yellow("from_compiler.txt") + " and "+ chalk.bold.underline.yellow("from_blockchain.txt"));
+      }
   	});
   }
 

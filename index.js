@@ -42,13 +42,12 @@ const compiler_question = [
   }
 ]
 program
-  .version('0.2.1')
+  .version('0.2.3','-v --version')
   .description('=========  Ethereum Bytecode Verifier  ==========='+'\n'+
   chalk.yellow(
 		figlet.textSync('eth-Verifier',{horizontalLayout:'default'})
   )+'\n'+'   ===============================================')
   .option('-l, --list', 'list of formal released Solidity Compiler')
-
 
 program
   .command('verify <chainChoice>')
@@ -59,19 +58,19 @@ program
     }
     else{
       console.log('You\'ve chosen: '+chainChoice);
-      
+
       const net_to_provider = {
         'mainnet':'https://mainnet.infura.io',
         'ropsten': 'https://ropsten.infura.io',
         'kovan': 'https://kovan.infura.io',
         'rinkeby': 'https://rinkeby.infura.io',
       }
-      
+
       if (chainChoice == 'mainnet' || chainChoice == 'ropsten'
         || chainChoice=='kovan' || chainChoice== 'rinkeby'){
-        
+
         var provider = net_to_provider[chainChoice];
-        // After confirming the chain choice, prompt question. 
+        // After confirming the chain choice, prompt question.
         prompt(verifier_question)
           .then( (answers) =>{
           answers['file_folder'] = process.cwd();
@@ -106,6 +105,6 @@ program
 
   program.parse(process.argv);
 
-  if (program.list) solcVersionList();
-  
-  
+  if (program.list) {
+    solcVersionList();
+  }
